@@ -18,8 +18,8 @@ if node[:instance_role][/^app/]
   #
 
   execute "unmask haproxy #{node[:haproxy_version]}" do
-    command "echo '=net-proxy/haproxy-#{node[:haproxy_version]}' >> /etc/portage/package.keywords/local"
-    not_if "grep '=net-proxy/haproxy-#{node[:haproxy_version]}' /etc/portage/package.keywords/local"
+    command "echo '=net-proxy/haproxy-#{node[:haproxy_version]}' >> /etc/portage/package.unmask/local"
+    not_if "grep '=net-proxy/haproxy-#{node[:haproxy_version]}' /etc/portage/package.unmask/local"
   end
   
   package "net-proxy/haproxy" do
@@ -37,13 +37,19 @@ if node[:instance_role][/^app/]
     group node[:users][0][:username]
   end
 
-  template "/data/ssl/app.pem" do
-    source "app.pem.erb"
-    action :create
-    owner node[:users][0][:username]
-    group node[:users][0][:username]
-    mode '0644'
-    notifies :run, 'execute[reload-haproxy]', :delayed
+  [:crt, :key].each do |ext|
+    cookbook_file "app.#{ext}" do
+      path "/data/ssl/app.#{ext}"
+      action :create
+      owner node[:users][0][:username]
+      group node[:users][0][:username]
+      mode '0644'
+      notifies :run, 'execute[reload-haproxy]', :delayed
+    end
+  end
+  
+  execute "create pem file" do
+    command "cat /data/ssl/app.{crt,key} > /data/ssl/app.pem"
   end
 
   #
