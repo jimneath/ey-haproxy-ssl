@@ -8,54 +8,62 @@ execute "reload-haproxy" do
 end
 
 #
-# install haproxy 1.5.4 (by default) if not already present
+# only run on app servers
 #
 
-execute "unmask haproxy #{haproxy_version}" do
-  command "echo '=net-proxy/haproxy-#{haproxy_version}' >> /etc/portage/package.keywords/local"
-  not_if "grep '=net-proxy/haproxy-#{haproxy_version}' /etc/portage/package.keywords/local"
-end
+  if node[:instance_role][/^app/]
 
-package "net-proxy/haproxy" do
-  action :install
-  version haproxy_version
-end
+  #
+  # install haproxy 1.5.4 (by default) if not already present
+  #
 
-#
-# write the ssl files
-#
+  execute "unmask haproxy #{haproxy_version}" do
+    command "echo '=net-proxy/haproxy-#{haproxy_version}' >> /etc/portage/package.keywords/local"
+    not_if "grep '=net-proxy/haproxy-#{haproxy_version}' /etc/portage/package.keywords/local"
+  end
 
-directory "/data/ssl" do
-  action :create
-  owner node[:users][0][:username]
-  group node[:users][0][:username]
-end
+  package "net-proxy/haproxy" do
+    action :install
+    version haproxy_version
+  end
 
-template "/data/ssl/app.pem" do
-  source "app.pem.erb"
-  action :create
-  owner node[:users][0][:username]
-  group node[:users][0][:username]
-  mode '0644'
-  notifies :run, 'execute[reload-haproxy]', :delayed
-end
+  #
+  # write the ssl files
+  #
 
-#
-# get a list of app instances
-#
+  directory "/data/ssl" do
+    action :create
+    owner node[:users][0][:username]
+    group node[:users][0][:username]
+  end
 
-instances = node[:engineyard][:environment][:instances]
-app_instances = instances.select{ |i| i[:role][/^app/] }
+  template "/data/ssl/app.pem" do
+    source "app.pem.erb"
+    action :create
+    owner node[:users][0][:username]
+    group node[:users][0][:username]
+    mode '0644'
+    notifies :run, 'execute[reload-haproxy]', :delayed
+  end
 
-#
-# write out the new haproxy config
-#
+  #
+  # get a list of app instances
+  #
 
-template "/etc/haproxy.cfg" do
-  source "haproxy.cfg.erb"
-  owner 'root'
-  group 'root'
-  mode '0644'
-  variables(app_instances: app_instances)
-  notifies :run, 'execute[reload-haproxy]', :delayed
+  instances = node[:engineyard][:environment][:instances]
+  app_instances = instances.select{ |i| i[:role][/^app/] }
+
+  #
+  # write out the new haproxy config
+  #
+
+  template "/etc/haproxy.cfg" do
+    source "haproxy.cfg.erb"
+    owner 'root'
+    group 'root'
+    mode '0644'
+    variables(app_instances: app_instances)
+    notifies :run, 'execute[reload-haproxy]', :delayed
+  end
+
 end
