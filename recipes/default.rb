@@ -11,20 +11,20 @@ end
 # only run on app servers
 #
 
-  if node[:instance_role][/^app/]
+if node[:instance_role][/^app/]
 
   #
   # install haproxy 1.5.4 (by default) if not already present
   #
 
-  execute "unmask haproxy #{haproxy_version}" do
-    command "echo '=net-proxy/haproxy-#{haproxy_version}' >> /etc/portage/package.keywords/local"
-    not_if "grep '=net-proxy/haproxy-#{haproxy_version}' /etc/portage/package.keywords/local"
+  execute "unmask haproxy #{node[:haproxy_version]}" do
+    command "echo '=net-proxy/haproxy-#{node[:haproxy_version]}' >> /etc/portage/package.keywords/local"
+    not_if "grep '=net-proxy/haproxy-#{node[:haproxy_version]}' /etc/portage/package.keywords/local"
   end
-
+  
   package "net-proxy/haproxy" do
     action :install
-    version haproxy_version
+    version node[:haproxy_version]
   end
 
   #
