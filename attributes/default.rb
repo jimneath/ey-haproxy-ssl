@@ -1,1 +1,1 @@
-haproxy_version "1.5.4"
+default[:haproxy_version] = "1.5.4"
